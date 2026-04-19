@@ -1,7 +1,7 @@
 import os
 import shutil
 from fastapi import APIRouter, UploadFile, File, HTTPException
-from app.models.schemas import DocumentIngested, DocumentListResponse
+from app.models.schemas import DocumentIngested, DocumentListResponse, DocumentDeleted
 from app.services.rag_service import rag_service
 from app.core.config import UPLOAD_DIR, ALLOWED_EXTENSIONS, MAX_UPLOAD_SIZE_MB
 
@@ -41,5 +41,17 @@ async def list_documents():
     try:
         docs = rag_service.list_documents()
         return DocumentListResponse(documents=docs, count=len(docs))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/{filename}", response_model=DocumentDeleted)
+async def delete_document(filename: str):
+    """Delete a document from vector store and disk."""
+    try:
+        result = rag_service.delete_document(filename)
+        return DocumentDeleted(**result)
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

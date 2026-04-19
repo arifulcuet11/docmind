@@ -30,6 +30,10 @@ export const uploadDocument = async (file: File): Promise<DocumentIngested> => {
   return data;
 };
 
+export const deleteDocument = async (filename: string): Promise<void> => {
+  await api.delete(`/api/v1/documents/${encodeURIComponent(filename)}`);
+};
+
 export const listDocuments = async (): Promise<DocumentListResponse> => {
   const { data } = await api.get<DocumentListResponse>("/api/v1/documents/");
   return data;

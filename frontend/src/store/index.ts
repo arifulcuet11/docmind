@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import type { Message, ChatStatus, UploadStatus } from "../types";
-import { sendMessage, uploadDocument, listDocuments } from "../services/api";
+import { sendMessage, uploadDocument, listDocuments, deleteDocument } from "../services/api";
 
 interface DocMindStore {
   // Chat
@@ -17,6 +17,7 @@ interface DocMindStore {
   uploadError: string | null;
   upload: (file: File) => Promise<void>;
   fetchDocuments: () => Promise<void>;
+  deleteDoc: (filename: string) => Promise<void>;
 }
 
 export const useDocMindStore = create<DocMindStore>((set, get) => ({
@@ -84,6 +85,17 @@ export const useDocMindStore = create<DocMindStore>((set, get) => ({
       set({ documents: result.documents });
     } catch {
       // silently fail
+    }
+  },
+
+  deleteDoc: async (filename: string) => {
+    try {
+      await deleteDocument(filename);
+      set((state) => ({
+        documents: state.documents.filter((d) => !d.includes(filename)),
+      }));
+    } catch (err) {
+      console.error("Delete failed:", err);
     }
   },
 }));

@@ -24,7 +24,10 @@ class DocumentListResponse(BaseModel):
     documents: List[str]
     count: int
 
-
+class DocumentDeleted(BaseModel):
+    file: str
+    message: str = "Document deleted successfully"
+    
 class HealthResponse(BaseModel):
     status: str
     app: str

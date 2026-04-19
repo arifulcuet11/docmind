@@ -1,5 +1,5 @@
 from langchain_community.vectorstores import Chroma
-from langchain.schema import Document
+from langchain.schema import BaseRetriever, Document
 from typing import List
 
 from app.core.config import CHROMA_PERSIST_DIR, COLLECTION_NAME, RETRIEVER_TOP_K
@@ -37,13 +37,83 @@ class VectorStoreService:
         Search for similar chunks.
         Optionally filter by specific source files.
         """
-        retriever_kwargs = {"k": top_k}
-
-        # If specific sources selected, filter by them
         if sources:
-            retriever_kwargs["filter"] = {"source": {"$in": sources}}
+            # For ChromaDB filtering, we need to use a different approach
+            # Retrieve documents separately for each source to ensure fair distribution
+            class FilteredRetriever(BaseRetriever):
+                allowed_sources: List[str]
+                max_results: int
+                vectorstore: any
 
-        return self.vectorstore.as_retriever(search_kwargs=retriever_kwargs)
+                def __init__(self, **kwargs):
+                    super().__init__(**kwargs)
+
+                def get_relevant_documents(self, query: str) -> List[Document]:
+                    # Get a large number of documents to ensure we have docs from all sources
+                    base_retriever = self.vectorstore.as_retriever(search_kwargs={"k": 100})
+                    all_docs = base_retriever.get_relevant_documents(query)
+                    
+                    # Filter by allowed sources
+                    filtered_docs = [
+                        doc for doc in all_docs 
+                        if doc.metadata.get("source") in self.allowed_sources
+                    ]
+                    
+                    # Group by source and take top docs from each
+                    docs_by_source = {}
+                    for doc in filtered_docs:
+                        source = doc.metadata.get("source")
+                        if source not in docs_by_source:
+                            docs_by_source[source] = []
+                        docs_by_source[source].append(doc)
+                    
+                    # Take top documents from each source
+                    result_docs = []
+                    docs_per_source = max(1, self.max_results // len(self.allowed_sources))
+                    
+                    for source_docs in docs_by_source.values():
+                        # Sort by relevance (assuming they're already sorted by the retriever)
+                        result_docs.extend(source_docs[:docs_per_source])
+                    
+                    return result_docs[:self.max_results]
+
+                async def aget_relevant_documents(self, query: str) -> List[Document]:
+                    # For async support
+                    docs = await self.base_retriever.aget_relevant_documents(query)
+                    # Group documents by source
+                    docs_by_source = {}
+                    for doc in docs:
+                        source = doc.metadata.get("source")
+                        if source in self.allowed_sources:
+                            if source not in docs_by_source:
+                                docs_by_source[source] = []
+                            docs_by_source[source].append(doc)
+                    
+                    # Take top documents from each source
+                    result_docs = []
+                    docs_per_source = max(1, self.max_results // len(self.allowed_sources))
+                    
+                    for source_docs in docs_by_source.values():
+                        result_docs.extend(source_docs[:docs_per_source])
+                    
+                    # If we don't have enough docs, fill with remaining docs
+                    if len(result_docs) < self.max_results:
+                        for source_docs in docs_by_source.values():
+                            for doc in source_docs[docs_per_source:]:
+                                if len(result_docs) >= self.max_results:
+                                    break
+                                result_docs.append(doc)
+                    
+                    return result_docs[:self.max_results]
+
+            return FilteredRetriever(
+                vectorstore=self.vectorstore, 
+                allowed_sources=sources, 
+                max_results=top_k
+            )
+        else:
+            # No filtering needed
+            return self.vectorstore.as_retriever(search_kwargs={"k": top_k})
 
     def delete_by_source(self, filename: str) -> int:
         """

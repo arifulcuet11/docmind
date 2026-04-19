@@ -10,6 +10,7 @@ export interface Message {
 export interface ChatRequest {
   question: string;
   session_id?: string;
+  selected_sources?: string[];   // filter which docs to search
 }
 
 export interface ChatResponse {
@@ -23,6 +24,11 @@ export interface DocumentIngested {
   file: string;
   chunks: number;
   pages: number;
+  message: string;
+}
+
+export interface DocumentDeleted {
+  file: string;
   message: string;
 }
 

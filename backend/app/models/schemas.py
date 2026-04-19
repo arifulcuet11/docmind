@@ -5,6 +5,7 @@ from typing import List, Optional
 class ChatRequest(BaseModel):
     question: str
     session_id: Optional[str] = None
+    selected_sources: Optional[List[str]] = None  # filter by these docs
 
 
 class ChatResponse(BaseModel):
@@ -20,14 +21,16 @@ class DocumentIngested(BaseModel):
     message: str = "Document ingested successfully"
 
 
+class DocumentDeleted(BaseModel):
+    file: str
+    message: str = "Document deleted successfully"
+
+
 class DocumentListResponse(BaseModel):
     documents: List[str]
     count: int
 
-class DocumentDeleted(BaseModel):
-    file: str
-    message: str = "Document deleted successfully"
-    
+
 class HealthResponse(BaseModel):
     status: str
     app: str

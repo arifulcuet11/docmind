@@ -13,11 +13,15 @@ interface DocMindStore {
 
   // Documents
   documents: string[];
+  selectedSources: string[];
   uploadStatus: UploadStatus;
   uploadError: string | null;
   upload: (file: File) => Promise<void>;
   fetchDocuments: () => Promise<void>;
   deleteDoc: (filename: string) => Promise<void>;
+  toggleSource: (source: string) => void;
+  selectAllSources: () => void;
+  clearSourceSelection: () => void;
 }
 
 export const useDocMindStore = create<DocMindStore>((set, get) => ({
@@ -30,6 +34,8 @@ export const useDocMindStore = create<DocMindStore>((set, get) => ({
     set((state) => ({ messages: [...state.messages, message] })),
 
   ask: async (question: string) => {
+    const { selectedSources } = get();
+
     const userMessage: Message = {
       id: crypto.randomUUID(),
       role: "user",
@@ -42,7 +48,12 @@ export const useDocMindStore = create<DocMindStore>((set, get) => ({
     }));
 
     try {
-      const response = await sendMessage({ question, session_id: get().sessionId ?? undefined });
+      const response = await sendMessage({
+        question,
+        session_id: get().sessionId ?? undefined,
+        selected_sources: selectedSources.length > 0 ? selectedSources : undefined,
+      });
+
       const assistantMessage: Message = {
         id: crypto.randomUUID(),
         role: "assistant",
@@ -64,6 +75,7 @@ export const useDocMindStore = create<DocMindStore>((set, get) => ({
 
   // ── Documents ──────────────────────────────────────────────
   documents: [],
+  selectedSources: [],
   uploadStatus: "idle",
   uploadError: null,
 
@@ -93,9 +105,27 @@ export const useDocMindStore = create<DocMindStore>((set, get) => ({
       await deleteDocument(filename);
       set((state) => ({
         documents: state.documents.filter((d) => !d.includes(filename)),
+        selectedSources: state.selectedSources.filter((s) => !s.includes(filename)),
       }));
     } catch (err) {
       console.error("Delete failed:", err);
     }
   },
+
+  toggleSource: (source: string) => {
+    set((state) => {
+      const isSelected = state.selectedSources.includes(source);
+      return {
+        selectedSources: isSelected
+          ? state.selectedSources.filter((s) => s !== source)
+          : [...state.selectedSources, source],
+      };
+    });
+  },
+
+  selectAllSources: () => {
+    set((state) => ({ selectedSources: [...state.documents] }));
+  },
+
+  clearSourceSelection: () => set({ selectedSources: [] }),
 }));

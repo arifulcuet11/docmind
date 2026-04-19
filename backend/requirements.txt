@@ -1,0 +1,21 @@
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+python-multipart==0.0.9
+pydantic==2.8.2
+python-dotenv==1.0.1
+
+# LangChain core
+langchain==0.3.0
+langchain-community==0.3.0
+langchain-openai==0.2.0
+langchain-anthropic==0.2.0
+
+# Vector store
+chromadb==0.5.5
+
+# Document loaders
+pypdf==4.3.1
+unstructured==0.15.13
+
+# Ollama
+ollama==0.3.3

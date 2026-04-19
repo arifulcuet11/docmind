@@ -1,0 +1,89 @@
+import { create } from "zustand";
+import type { Message, ChatStatus, UploadStatus } from "../types";
+import { sendMessage, uploadDocument, listDocuments } from "../services/api";
+
+interface DocMindStore {
+  // Chat
+  messages: Message[];
+  chatStatus: ChatStatus;
+  sessionId: string | null;
+  addMessage: (message: Message) => void;
+  ask: (question: string) => Promise<void>;
+  clearChat: () => void;
+
+  // Documents
+  documents: string[];
+  uploadStatus: UploadStatus;
+  uploadError: string | null;
+  upload: (file: File) => Promise<void>;
+  fetchDocuments: () => Promise<void>;
+}
+
+export const useDocMindStore = create<DocMindStore>((set, get) => ({
+  // ── Chat ───────────────────────────────────────────────────
+  messages: [],
+  chatStatus: "idle",
+  sessionId: null,
+
+  addMessage: (message) =>
+    set((state) => ({ messages: [...state.messages, message] })),
+
+  ask: async (question: string) => {
+    const userMessage: Message = {
+      id: crypto.randomUUID(),
+      role: "user",
+      content: question,
+      timestamp: new Date(),
+    };
+    set((state) => ({
+      messages: [...state.messages, userMessage],
+      chatStatus: "loading",
+    }));
+
+    try {
+      const response = await sendMessage({ question, session_id: get().sessionId ?? undefined });
+      const assistantMessage: Message = {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        content: response.answer,
+        sources: response.sources,
+        timestamp: new Date(),
+      };
+      set((state) => ({
+        messages: [...state.messages, assistantMessage],
+        chatStatus: "idle",
+        sessionId: response.session_id ?? state.sessionId,
+      }));
+    } catch {
+      set({ chatStatus: "error" });
+    }
+  },
+
+  clearChat: () => set({ messages: [], sessionId: null }),
+
+  // ── Documents ──────────────────────────────────────────────
+  documents: [],
+  uploadStatus: "idle",
+  uploadError: null,
+
+  upload: async (file: File) => {
+    set({ uploadStatus: "uploading", uploadError: null });
+    try {
+      await uploadDocument(file);
+      set({ uploadStatus: "success" });
+      get().fetchDocuments();
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Upload failed";
+      set({ uploadStatus: "error", uploadError: message });
+    }
+  },
+
+  fetchDocuments: async () => {
+    try {
+      const result = await listDocuments();
+      set({ documents: result.documents });
+    } catch {
+      // silently fail
+    }
+  },
+}));

@@ -1,6 +1,7 @@
 from typing import List, Optional
 from langchain.chains import RetrievalQA
 from langchain.prompts import PromptTemplate
+from langchain.schema import Document
 
 from app.core.llm_factory import get_llm
 from app.services.vector_store_service import vector_store_service
@@ -16,18 +17,7 @@ class RAGService:
 
     def __init__(self):
         self.llm = get_llm()
-
-    def query(self, question: str, selected_sources: Optional[List[str]] = None) -> dict:
-        """
-        Answer a question using RAG.
-        Optionally filter by selected_sources (list of file paths).
-        """
-        retriever = vector_store_service.search(
-            query=question,
-            sources=selected_sources,
-        )
-
-        prompt = PromptTemplate(
+        self.prompt = PromptTemplate(
             input_variables=["context", "question"],
             template="""You are a helpful assistant. Use the context below to answer the question.
 If the context contains relevant information, summarize and explain it clearly.
@@ -41,12 +31,50 @@ Question: {question}
 Answer:"""
         )
 
+    def _build_prompt(self, question: str, docs: List[Document]) -> str:
+        context = "\n\n".join(doc.page_content for doc in docs)
+        return self.prompt.format(context=context, question=question)
+
+    def _extract_chunk_text(self, chunk: any) -> str:
+        if isinstance(chunk, str):
+            return chunk
+
+        if chunk is None:
+            return ""
+
+        if hasattr(chunk, "content"):
+            content = chunk.content
+            if isinstance(content, str):
+                return content
+            if isinstance(content, dict):
+                return content.get("content", "") or content.get("text", "")
+
+        if hasattr(chunk, "text"):
+            text = chunk.text
+            if isinstance(text, str):
+                return text
+
+        if isinstance(chunk, dict):
+            return chunk.get("content", "") or chunk.get("text", "") or ""
+
+        return str(chunk)
+
+    def query(self, question: str, selected_sources: Optional[List[str]] = None) -> dict:
+        """
+        Answer a question using RAG.
+        Optionally filter by selected_sources (list of file paths).
+        """
+        retriever = vector_store_service.search(
+            query=question,
+            sources=selected_sources,
+        )
+
         qa_chain = RetrievalQA.from_chain_type(
             llm=self.llm,
             retriever=retriever,
             return_source_documents=True,
             chain_type="stuff",
-            chain_type_kwargs={"prompt": prompt},
+            chain_type_kwargs={"prompt": self.prompt},
         )
 
         result = qa_chain.invoke({"query": question})
@@ -60,6 +88,26 @@ Answer:"""
             "answer": result["result"],
             "sources": sources,
         }
+
+    def stream(self, question: str, selected_sources: Optional[List[str]] = None):
+        retriever = vector_store_service.search(
+            query=question,
+            sources=selected_sources,
+        )
+        docs = retriever.get_relevant_documents(question)
+        prompt_text = self._build_prompt(question, docs)
+
+        sources = list({
+            doc.metadata.get("source", "unknown")
+            for doc in docs
+        })
+
+        for chunk in self.llm.stream(prompt_text):
+            text = self._extract_chunk_text(chunk)
+            if text:
+                yield {"type": "chunk", "text": text}
+
+        yield {"type": "done", "sources": sources}
 
 
 # Singleton

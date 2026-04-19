@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import type { Message, ChatStatus, UploadStatus } from "../types";
-import { sendMessage, uploadDocument, listDocuments, deleteDocument } from "../services/api";
+import { streamMessage, uploadDocument, listDocuments, deleteDocument } from "../services/api";
 
 interface DocMindStore {
   // Chat
@@ -8,6 +8,8 @@ interface DocMindStore {
   chatStatus: ChatStatus;
   sessionId: string | null;
   addMessage: (message: Message) => void;
+  appendMessageContent: (messageId: string, chunk: string) => void;
+  setMessageSources: (messageId: string, sources: string[]) => void;
   ask: (question: string) => Promise<void>;
   clearChat: () => void;
 
@@ -33,6 +35,22 @@ export const useDocMindStore = create<DocMindStore>((set, get) => ({
   addMessage: (message) =>
     set((state) => ({ messages: [...state.messages, message] })),
 
+  appendMessageContent: (messageId: string, chunk: string) =>
+    set((state) => ({
+      messages: state.messages.map((message) =>
+        message.id === messageId
+          ? { ...message, content: (message.content ?? "") + chunk }
+          : message
+      ),
+    })),
+
+  setMessageSources: (messageId: string, sources: string[]) =>
+    set((state) => ({
+      messages: state.messages.map((message) =>
+        message.id === messageId ? { ...message, sources } : message
+      ),
+    })),
+
   ask: async (question: string) => {
     const { selectedSources } = get();
 
@@ -42,30 +60,37 @@ export const useDocMindStore = create<DocMindStore>((set, get) => ({
       content: question,
       timestamp: new Date(),
     };
+    const assistantMessage: Message = {
+      id: crypto.randomUUID(),
+      role: "assistant",
+      content: "",
+      sources: [],
+      timestamp: new Date(),
+    };
+
     set((state) => ({
-      messages: [...state.messages, userMessage],
+      messages: [...state.messages, userMessage, assistantMessage],
       chatStatus: "loading",
     }));
 
     try {
-      const response = await sendMessage({
-        question,
-        session_id: get().sessionId ?? undefined,
-        selected_sources: selectedSources.length > 0 ? selectedSources : undefined,
-      });
-
-      const assistantMessage: Message = {
-        id: crypto.randomUUID(),
-        role: "assistant",
-        content: response.answer,
-        sources: response.sources,
-        timestamp: new Date(),
-      };
-      set((state) => ({
-        messages: [...state.messages, assistantMessage],
-        chatStatus: "idle",
-        sessionId: response.session_id ?? state.sessionId,
-      }));
+      await streamMessage(
+        {
+          question,
+          session_id: get().sessionId ?? undefined,
+          selected_sources: selectedSources.length > 0 ? selectedSources : undefined,
+        },
+        (chunk) => {
+          get().appendMessageContent(assistantMessage.id, chunk);
+        },
+        (sources, sessionId) => {
+          get().setMessageSources(assistantMessage.id, sources ?? []);
+          set((state) => ({
+            chatStatus: "idle",
+            sessionId: sessionId ?? state.sessionId,
+          }));
+        }
+      );
     } catch {
       set({ chatStatus: "error" });
     }

@@ -45,7 +45,6 @@ export function DocumentPanel() {
     setDeletingFile(null);
   };
 
-  const allSelected = documents.length > 0 && selectedSources.length === documents.length;
   const noneSelected = selectedSources.length === 0;
 
   return (

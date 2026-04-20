@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Brain, Server } from "lucide-react";
+import { Brain, Server, ChevronLeft, ChevronRight } from "lucide-react";
 import { ChatWindow } from "./components/chat/ChatWindow";
 import { DocumentPanel } from "./components/documents/DocumentPanel";
 import { ChatSessionsPanel } from "./components/chat/ChatSessionsPanel";
@@ -8,6 +8,7 @@ import type { HealthResponse } from "./types";
 
 export default function App() {
   const [health, setHealth] = useState<HealthResponse | null>(null);
+  const [sessionsMinimized, setSessionsMinimized] = useState(false);
 
   useEffect(() => {
     getHealth()
@@ -46,10 +47,24 @@ export default function App() {
           <ChatWindow />
         </main>
 
+        {/* Toggle button for sessions */}
+        <button
+          onClick={() => setSessionsMinimized(!sessionsMinimized)}
+          className="px-2 hover:bg-gray-100 transition-colors border-l border-gray-200 flex items-center justify-center"
+        >
+          {sessionsMinimized ? (
+            <ChevronLeft size={18} className="text-gray-400" />
+          ) : (
+            <ChevronRight size={18} className="text-gray-400" />
+          )}
+        </button>
+
         {/* Sidebar — Chat sessions */}
-        <aside className="w-80 bg-white border-l border-gray-200 flex flex-col overflow-hidden">
-          <ChatSessionsPanel />
-        </aside>
+        {!sessionsMinimized && (
+          <aside className="w-80 bg-white border-l border-gray-200 flex flex-col overflow-hidden">
+            <ChatSessionsPanel />
+          </aside>
+        )}
       </div>
     </div>
   );

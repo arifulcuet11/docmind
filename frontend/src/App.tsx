@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Brain, Server } from "lucide-react";
 import { ChatWindow } from "./components/chat/ChatWindow";
 import { DocumentPanel } from "./components/documents/DocumentPanel";
+import { ChatSessionsPanel } from "./components/chat/ChatSessionsPanel";
 import { getHealth } from "./services/api";
 import type { HealthResponse } from "./types";
 
@@ -44,6 +45,11 @@ export default function App() {
         <main className="flex-1 flex flex-col overflow-hidden">
           <ChatWindow />
         </main>
+
+        {/* Sidebar — Chat sessions */}
+        <aside className="w-80 bg-white border-l border-gray-200 flex flex-col overflow-hidden">
+          <ChatSessionsPanel />
+        </aside>
       </div>
     </div>
   );

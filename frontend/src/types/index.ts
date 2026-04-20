@@ -7,6 +7,14 @@ export interface Message {
   timestamp: Date;
 }
 
+export interface ChatSession {
+  id: string;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
+  messages: Message[];
+}
+
 export interface ChatRequest {
   question: string;
   session_id?: string;
@@ -37,7 +45,7 @@ export interface DocumentListResponse {
   count: number;
 }
 
-// ── Health ────────────────────────────────────────────────────
+// ── Health ───────────────────────────────────────────────────
 export interface HealthResponse {
   status: string;
   app: string;

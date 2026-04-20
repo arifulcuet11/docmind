@@ -45,9 +45,11 @@ export function ChatWindow() {
             <p className="text-sm">Upload a document and start asking questions.</p>
           </div>
         )}
-        {messages.map((msg) => (
-          <ChatMessage key={msg.id} message={msg} />
-        ))}
+        {messages
+          .filter((msg) => !(msg.role === "assistant" && !msg.content && chatStatus === "loading"))
+          .map((msg) => (
+            <ChatMessage key={msg.id} message={msg} />
+          ))}
         {chatStatus === "loading" && (
           <div className="flex items-center gap-2 text-gray-400 text-sm">
             <Loader2 size={14} className="animate-spin" />

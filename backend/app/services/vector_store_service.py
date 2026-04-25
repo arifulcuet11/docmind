@@ -1,9 +1,11 @@
+import os
 from langchain_community.vectorstores import Chroma
 from langchain.schema import BaseRetriever, Document
 from typing import List
 
 from app.core.config import CHROMA_PERSIST_DIR, COLLECTION_NAME, RETRIEVER_TOP_K
 from app.core.llm_factory import get_embeddings
+from app.core.config import LLM_PROVIDER, CURRENT_EMBEDDING_MODEL
 
 
 class VectorStoreService:
@@ -21,10 +23,16 @@ class VectorStoreService:
 
     def _load_or_create(self) -> Chroma:
         """Load existing ChromaDB or create a new one."""
+        # Namespace collections and persistence by provider + embedding model
+        embed_model_safe = (CURRENT_EMBEDDING_MODEL or "default").replace("/", "_").replace(":", "_")
+        namespaced_collection = f"{COLLECTION_NAME}_{LLM_PROVIDER}_{embed_model_safe}"
+        persist_dir = os.path.join(CHROMA_PERSIST_DIR, namespaced_collection)
+        os.makedirs(persist_dir, exist_ok=True)
+
         return Chroma(
-            collection_name=COLLECTION_NAME,
+            collection_name=namespaced_collection,
             embedding_function=self.embeddings,
-            persist_directory=CHROMA_PERSIST_DIR,
+            persist_directory=persist_dir,
         )
 
     def add_documents(self, chunks: List[Document]) -> None:

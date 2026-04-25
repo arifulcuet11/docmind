@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 import json
+import traceback
 
 from app.models.schemas import ChatRequest, ChatResponse
 from app.services.rag_service import rag_service
@@ -22,7 +23,8 @@ async def chat(request: ChatRequest):
             session_id=request.session_id,
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        tb = traceback.format_exc()
+        raise HTTPException(status_code=500, detail=tb)
 
 
 @router.post("/stream")

@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # ── LLM Provider ─────────────────────────────────────────────
-# Options: "ollama" | "openai" | "claude"
+# Options: "ollama" | "openai" | "claude" | "openrouter"
 LLM_PROVIDER = os.getenv("LLM_PROVIDER", "ollama")
 
 # ── Model names per provider ──────────────────────────────────
@@ -12,13 +12,28 @@ MODELS = {
     "ollama": os.getenv("OLLAMA_MODEL", "llama3.1:8b"),
     "openai": os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
     "claude": os.getenv("CLAUDE_MODEL", "claude-sonnet-4-20250514"),
+    "openrouter": os.getenv("OPENROUTER_MODEL", "nvidia/nemotron-3-super-120b-a12b:free"),
 }
 
 CURRENT_MODEL = MODELS[LLM_PROVIDER]
 
+# ── Embedding model per provider (used to namespace Chroma collections) ──
+EMBEDDING_MODELS = {
+    "ollama": os.getenv("OLLAMA_EMBED_MODEL", "nomic-embed-text"),
+    "openai": os.getenv("OPENAI_EMBED_MODEL", "text-embedding-3-small"),
+    "claude": os.getenv("CLAUDE_EMBED_MODEL", "text-embedding-3-small"),
+    "openrouter": os.getenv("OPENROUTER_EMBED_MODEL", "text-embedding-3-small"),
+}
+
+CURRENT_EMBEDDING_MODEL = EMBEDDING_MODELS.get(LLM_PROVIDER)
+
 # ── API Keys ──────────────────────────────────────────────────
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
+
+# ── Open Router (production option) ───────────────────────────
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
+OPENROUTER_BASE_URL = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
 
 # ── Ollama ────────────────────────────────────────────────────
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")

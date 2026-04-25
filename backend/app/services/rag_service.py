@@ -5,6 +5,7 @@ from langchain.schema import Document
 
 from app.core.llm_factory import get_llm
 from app.services.vector_store_service import vector_store_service
+from chromadb.errors import InvalidDimensionException
 
 
 class RAGService:
@@ -64,10 +65,16 @@ Answer:"""
         Answer a question using RAG.
         Optionally filter by selected_sources (list of file paths).
         """
-        retriever = vector_store_service.search(
-            query=question,
-            sources=selected_sources,
-        )
+        try:
+            retriever = vector_store_service.search(
+                query=question,
+                sources=selected_sources,
+            )
+        except InvalidDimensionException as e:
+            raise ValueError(
+                "Embedding dimension mismatch between stored collection and current embedding model. "
+                "Either recreate the Chroma DB (delete ./chroma_db) and re-ingest documents, or use the same embedding model that was used to build the collection."
+            )
 
         qa_chain = RetrievalQA.from_chain_type(
             llm=self.llm,
@@ -77,15 +84,33 @@ Answer:"""
             chain_type_kwargs={"prompt": self.prompt},
         )
 
-        result = qa_chain.invoke({"query": question})
+        # Execute the chain. Wrap invocation to catch Chroma dimension errors
+        try:
+            result = qa_chain({"query": question})
+        except InvalidDimensionException:
+            raise ValueError(
+                "Embedding dimension mismatch between stored collection and current embedding model. "
+                "Either recreate the Chroma DB (delete ./chroma_db) and re-ingest documents, or use the same embedding model that was used to build the collection."
+            )
+
+        # Normalize result shape for compatibility across versions
+        if isinstance(result, str):
+            answer = result
+            source_docs = []
+        elif isinstance(result, dict):
+            answer = result.get("result") or result.get("output") or ""
+            source_docs = result.get("source_documents") or []
+        else:
+            answer = str(result)
+            source_docs = []
 
         sources = list({
-            doc.metadata.get("source", "unknown")
-            for doc in result["source_documents"]
+            getattr(doc, "metadata", {}).get("source", "unknown")
+            for doc in source_docs
         })
 
         return {
-            "answer": result["result"],
+            "answer": answer,
             "sources": sources,
         }
 

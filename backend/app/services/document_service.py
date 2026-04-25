@@ -5,6 +5,11 @@ from typing import List
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import PyPDFLoader, TextLoader
 from langchain.schema import Document
+import csv
+try:
+    from openpyxl import load_workbook
+except Exception:
+    load_workbook = None
 
 from app.core.config import UPLOAD_DIR, ALLOWED_EXTENSIONS, CHUNK_SIZE, CHUNK_OVERLAP
 from app.services.vector_store_service import vector_store_service
@@ -92,6 +97,55 @@ class DocumentService:
             return PyPDFLoader(file_path)
         elif ext in (".txt", ".md"):
             return TextLoader(file_path)
+        elif ext == ".csv":
+            # Simple CSV loader: create a Document per row (use headers if present)
+            class SimpleCSVLoader:
+                def __init__(self, path):
+                    self.path = path
+
+                def load(self):
+                    docs = []
+                    with open(self.path, newline='', encoding='utf-8') as f:
+                        reader = csv.reader(f)
+                        rows = list(reader)
+                        if not rows:
+                            return []
+                        headers = rows[0]
+                        for i, row in enumerate(rows[1:], start=1):
+                            if headers and len(headers) == len(row):
+                                text = ", ".join(f"{h}: {v}" for h, v in zip(headers, row))
+                            else:
+                                text = ", ".join([str(c) for c in row])
+                            docs.append(Document(page_content=text, metadata={"source": Path(self.path).name, "row": i}))
+                    return docs
+
+            return SimpleCSVLoader(file_path)
+        elif ext == ".xlsx":
+            if load_workbook is None:
+                raise ValueError("Missing dependency 'openpyxl' required to load .xlsx files")
+
+            class SimpleXLSXLoader:
+                def __init__(self, path):
+                    self.path = path
+
+                def load(self):
+                    docs = []
+                    wb = load_workbook(self.path, read_only=True, data_only=True)
+                    for sheet_name in wb.sheetnames:
+                        ws = wb[sheet_name]
+                        rows = list(ws.iter_rows(values_only=True))
+                        if not rows:
+                            continue
+                        headers = rows[0]
+                        for i, row in enumerate(rows[1:], start=1):
+                            if headers and len(headers) == len(row):
+                                text = ", ".join(f"{h}: {v}" for h, v in zip(headers, row))
+                            else:
+                                text = ", ".join([str(c) for c in row if c is not None])
+                            docs.append(Document(page_content=text, metadata={"source": Path(self.path).name, "sheet": sheet_name, "row": i}))
+                    return docs
+
+            return SimpleXLSXLoader(file_path)
         else:
             raise ValueError(f"Unsupported file type: {ext}")
 

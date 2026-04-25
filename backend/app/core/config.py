@@ -45,7 +45,7 @@ COLLECTION_NAME = os.getenv("COLLECTION_NAME", "docmind")
 # ── Document Upload ───────────────────────────────────────────
 UPLOAD_DIR = os.getenv("UPLOAD_DIR", "./uploads")
 MAX_UPLOAD_SIZE_MB = int(os.getenv("MAX_UPLOAD_SIZE_MB", "50"))
-ALLOWED_EXTENSIONS = {".pdf", ".txt", ".md", ".docx"}
+ALLOWED_EXTENSIONS = {".pdf", ".txt", ".md", ".docx", ".csv", ".xlsx"}
 
 # ── RAG Settings ──────────────────────────────────────────────
 CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", "500"))

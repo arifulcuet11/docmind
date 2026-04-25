@@ -32,7 +32,13 @@ export function DocumentPanel() {
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
-    accept: { "application/pdf": [".pdf"], "text/plain": [".txt"], "text/markdown": [".md"] },
+    accept: {
+      "application/pdf": [".pdf"],
+      "text/plain": [".txt"],
+      "text/markdown": [".md"],
+      "text/csv": [".csv"],
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [".xlsx"],
+    },
     multiple: false,
   });
 
@@ -68,7 +74,7 @@ export function DocumentPanel() {
           <p className="text-sm text-gray-500">
             {isDragActive ? "Drop file here…" : "Drag & drop or click to upload"}
           </p>
-          <p className="text-xs text-gray-400 mt-1">PDF, TXT, MD — max 50MB</p>
+          <p className="text-xs text-gray-400 mt-1">PDF, TXT, MD, CSV, XLSX — max 50MB</p>
         </div>
 
         {/* Upload status */}

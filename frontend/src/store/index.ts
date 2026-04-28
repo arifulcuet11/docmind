@@ -2,6 +2,8 @@ import { create } from "zustand";
 import type { ChatSession, Message, ChatStatus, UploadStatus } from "../types";
 import { streamMessage, uploadDocument, listDocuments, deleteDocument } from "../services/api";
 
+const HISTORY_BUFFER = 8;
+
 const STORAGE_KEY = "docmind_chat_sessions";
 
 const createSession = (name = "New chat") => ({
@@ -249,6 +251,12 @@ export const useDocMindStore = create<DocMindStore>((set, get) => {
       const currentMessages = get().messages;
       const isFirstMessage = currentMessages.length === 0;
 
+      // Collect prior messages as history before adding the new turn
+      const chatHistory = currentMessages
+        .filter((m) => m.content)
+        .slice(-HISTORY_BUFFER)
+        .map((m) => ({ role: m.role, content: m.content }));
+
       const userMessage: Message = {
         id: crypto.randomUUID(),
         role: "user",
@@ -291,6 +299,7 @@ export const useDocMindStore = create<DocMindStore>((set, get) => {
             question,
             session_id: get().sessionId ?? undefined,
             selected_sources: selectedSources.length > 0 ? selectedSources : undefined,
+            chat_history: chatHistory.length > 0 ? chatHistory : undefined,
           },
           (chunk) => {
             get().appendMessageContent(assistantMessage.id, chunk);

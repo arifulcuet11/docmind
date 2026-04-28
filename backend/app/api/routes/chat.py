@@ -13,9 +13,11 @@ router = APIRouter(prefix="/chat", tags=["Chat"])
 async def chat(request: ChatRequest):
     """Ask a question — answered using RAG over selected documents."""
     try:
+        history = [m.model_dump() for m in request.chat_history] if request.chat_history else None
         result = rag_service.query(
             question=request.question,
             selected_sources=request.selected_sources or None,
+            chat_history=history,
         )
         return ChatResponse(
             answer=result["answer"],
@@ -31,11 +33,14 @@ async def chat(request: ChatRequest):
 def stream_chat(request: ChatRequest):
     """Stream the chat response back to the client token by token."""
 
+    history = [m.model_dump() for m in request.chat_history] if request.chat_history else None
+
     def event_generator():
         try:
             for event in rag_service.stream(
                 question=request.question,
                 selected_sources=request.selected_sources or None,
+                chat_history=history,
             ):
                 if event.get("type") == "done":
                     event["session_id"] = request.session_id

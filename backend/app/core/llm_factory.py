@@ -63,11 +63,11 @@ def get_embeddings():
         )
 
     elif LLM_PROVIDER == "openrouter":
+        # OpenRouter does not expose an embeddings endpoint — use OpenAI directly
         from langchain_openai import OpenAIEmbeddings
         return OpenAIEmbeddings(
             model="text-embedding-3-small",
-            api_key=OPENROUTER_API_KEY,
-            base_url=OPENROUTER_BASE_URL
+            api_key=OPENAI_API_KEY,
         )
 
     elif LLM_PROVIDER == "claude":

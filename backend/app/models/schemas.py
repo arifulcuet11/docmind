@@ -2,10 +2,16 @@ from pydantic import BaseModel
 from typing import List, Optional
 
 
+class ChatHistoryMessage(BaseModel):
+    role: str  # "user" or "assistant"
+    content: str
+
+
 class ChatRequest(BaseModel):
     question: str
     session_id: Optional[str] = None
     selected_sources: Optional[List[str]] = None  # filter by these docs
+    chat_history: Optional[List[ChatHistoryMessage]] = None
 
 
 class ChatResponse(BaseModel):

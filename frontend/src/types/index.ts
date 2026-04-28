@@ -15,10 +15,16 @@ export interface ChatSession {
   messages: Message[];
 }
 
+export interface ChatHistoryMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
 export interface ChatRequest {
   question: string;
   session_id?: string;
-  selected_sources?: string[];   // filter which docs to search
+  selected_sources?: string[];
+  chat_history?: ChatHistoryMessage[];
 }
 
 export interface ChatResponse {
